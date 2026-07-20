@@ -1,0 +1,56 @@
+Process Injection via Cross-Process Memory Operations into High-Value Targets
+
+In this threat hunting scenario, we searched for unauthorized cross-process memory operations performed by unsigned or untrusted processes targeting high-value Windows processes such as lsass.exe, svchost.exe, winlogon.exe, and explorer.exe. The hunt also focused on identifying command-line indicators associated with reflective DLL injection and other memory injection techniques commonly used to execute malicious code within trusted system processes.
+
+Attackers use process injection to evade endpoint security controls, hide malicious code inside legitimate processes, steal credentials, establish persistence, and perform post-exploitation activities while minimizing their detection footprint. Compromising critical system processes such as lsass.exe may lead to credential theft, privilege escalation, lateral movement, and ultimately full domain compromise.
+
+Sentinel One Query
+
+event.type = "Cross Process"
+AND (
+    // High-value injection targets (lsass, explorer, svchost, notepad)
+    tgt.process.name in:anycase ("lsass.exe", "explorer.exe", "svchost.exe", "notepad.exe")
+    OR
+    // Reflective DLL injection patterns in source process cmdline
+    src.process.cmdline contains (
+        "ReflectivePEInjection",
+        "Invoke-ReflectiveDll",
+        "reflective_dll",
+        "LoadRemoteLibraryR"
+    )
+)
+AND NOT (src.process.signedStatus = "signed")
+AND NOT (
+    src.process.publisher in (
+        "Microsoft Corporation",
+        "Microsoft Windows",
+        "SentinelOne",
+        "CrowdStrike, Inc.",
+        "Carbon Black, Inc.",
+        "Symantec Corporation",
+        "Malwarebytes Inc."
+    )
+    OR
+    src.process.name in:anycase (
+        "MsMpEng.exe",
+        "WerFault.exe",
+        "WerFaultSecure.exe",
+        "taskmgr.exe",
+        "procexp.exe",
+        "procexp64.exe",
+        "procmon.exe",
+        "procmon64.exe"
+    )
+)
+| columns
+    endpoint.name,
+    src.process.name,
+    src.process.image.path,
+    src.process.cmdline,
+    src.process.publisher,
+    src.process.signedStatus,
+    src.process.user,
+    tgt.process.name,
+    tgt.process.image.path,
+    tgt.process.pid
+| sort -timestamp
