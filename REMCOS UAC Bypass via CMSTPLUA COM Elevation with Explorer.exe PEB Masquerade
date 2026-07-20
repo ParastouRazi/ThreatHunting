@@ -1,0 +1,39 @@
+
+REMCOS UAC Bypass via CMSTPLUA COM Elevation with Explorer.exe PEB Masquerade
+
+In this threat hunting scenario, we searched for Remcos RAT-related UAC bypass activity by identifying suspicious process creation and cross-process interactions involving non-Microsoft signed executables that attempt to masquerade as explorer.exe or interact with trusted Windows binaries such as iexplore.exe, svchost.exe, and fsutil.exe.
+
+The objective was to detect attempts to abuse the CMSTPLUA COM interface and process masquerading techniques to bypass User Account Control (UAC), elevate privileges, and execute malicious activities with higher permissions. Successful exploitation could allow attackers to maintain persistence, evade security controls, steal credentials, and perform further post-compromise actions.
+
+MITRE ATT&CK Mapping:
+
+T1548.002 — Abuse Elevation Control Mechanism: Bypass User Account Control
+T1055 — Process Injection
+T1036.005 — Masquerading: Match Legitimate Name or Location
+T1218 — System Binary Proxy Execution
+T1057 — Process Discovery
+
+
+event.type = "Process Creation"
+AND
+(
+    tgt.process.name = "iexplore.exe"
+    OR tgt.process.name = "ieinstal.exe"
+    OR tgt.process.name = "ielowutil.exe"
+    OR tgt.process.name = "svchost.exe"
+    OR tgt.process.name = "rmclient.exe"
+    OR tgt.process.name = "fsutil.exe"
+)
+AND
+(
+    src.process.name != "explorer.exe"
+    AND src.process.name != "svchost.exe"
+    AND src.process.name != "services.exe"
+    AND src.process.name != "wininit.exe"
+)
+AND src.process.publisher != "Microsoft Corporation"
+
+
+
+****************************
+
