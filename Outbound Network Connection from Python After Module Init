@@ -1,0 +1,25 @@
+Outbound Network Connection from Python After Module Init
+
+In this threat hunting scenario, we searched for instances where python.exe or python3.exe was executed with the -m init command-line argument and subsequently established outbound network connections over commonly abused ports such as 4444, 1337, 5555, 6666, 7777, 8888, 9001, and 9002. The objective was to identify Python-based reverse shells, command-and-control (C2) beacons, or malicious automation scripts communicating with external systems.
+
+Python is widely used by attackers due to its flexibility and availability across environments. Malicious Python scripts can be leveraged to establish remote access, download additional payloads, execute arbitrary commands, or maintain persistent communication with attacker-controlled infrastructure. Detecting unusual Python network activity helps identify post-exploitation frameworks and malware before they can expand their foothold within the environment.
+
+Sentınel One Query:
+
+event.type = "Network"
+AND (
+    src.process.name = "python.exe"
+    OR src.process.name = "python3.exe"
+)
+AND src.process.cmdline contains "-m"
+AND src.process.cmdline contains "init"
+AND (
+    dst.port.number = 4444
+    OR dst.port.number = 1337
+    OR dst.port.number = 9001
+    OR dst.port.number = 9002
+    OR dst.port.number = 5555
+    OR dst.port.number = 6666
+    OR dst.port.number = 7777
+    OR dst.port.number = 8888
+)
