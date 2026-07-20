@@ -1,0 +1,25 @@
+Process Hollowing Into Signed Binary from Suspicious Staging Path
+In this threat hunting scenario, we were looking for instances where an unsigned process executed from suspicious user-writable locations, such as %TEMP%, %APPDATA%, or %PROGRAMDATA%, performed code injection into a legitimate signed binary.
+The objective of this hunt was to identify process hollowing techniques used by attackers to replace the memory of a legitimate process with malicious code, allowing malware to execute under the context of a trusted application and evade security controls.
+During the hunt, we focused on abnormal parent-child process relationships, execution of unsigned binaries from staging paths, cross-process memory modifications, and signed processes exhibiting unusual behavior, such as unexpected code execution or suspicious network activity, to identify potential malware loaders, defense evasion techniques, and post-compromise activity.
+
+
+Sentinel One Query:
+
+event.type = "Cross Process"
+AND tgt.process.signedStatus = "signed"
+AND NOT (src.process.signedStatus = "signed")
+AND src.process.image.path contains ("\\ProgramData\\", "\\AppData\\Local\\Temp\\", "\\AppData\\Roaming\\", "\\Windows\\Temp\\")
+AND NOT (src.process.publisher in (
+  "Microsoft Corporation",
+  "SentinelOne",
+  "CrowdStrike, Inc.",
+  "Carbon Black, Inc.",
+  "Sophos Limited",
+  "Trend Micro Incorporated",
+  "Kaspersky Lab",
+  "Malwarebytes"
+))
+| columns endpoint.name, src.process.name, src.process.image.path, src.process.cmdline, src.process.user, tgt.process.name, tgt.process.image.path, tgt.process.publisher
+| limit 200
+
