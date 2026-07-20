@@ -1,0 +1,50 @@
+Kerberoasting via Rubeus or Impacket Tool Execution
+In this threat hunting scenario, we searched for evidence of Kerberoasting attacks by monitoring the execution of well-known offensive tools such as Rubeus and Impacket (e.g., GetST, GetTGT, asktgs), as well as command-line arguments associated with requesting Kerberos service tickets using RC4 (ETYPE-23) encryption. The hunt focused on identifying attempts to obtain service tickets that could later be cracked offline to recover service account passwords.
+
+Kerberoasting is a common post-compromise technique used by attackers after gaining access to an Active Directory environment. Successfully cracking a privileged service account password can enable privilege escalation, lateral movement, persistence, and ultimately compromise of the entire domain.
+
+Sentinel One Query:
+/* Kerberoasting Detection — Rubeus / Impacket process-level telemetry
+ * SentinelOne EDR does not ingest Windows Security Event Logs (e.g., Event ID 4769
+ * for ETYPE 23 RC4 ticket requests). The RC4/ETYPE-23 signal is approximated via
+ * command-line arguments passed to known Kerberoasting tooling.
+ */
+event.type = "Process Creation"
+AND (
+    // Rubeus binary execution (any parent)
+    tgt.process.name in:anycase ("Rubeus.exe")
+    OR
+    // Rubeus Kerberoasting sub-commands
+    tgt.process.cmdline contains:matchcase "kerberoast"
+    OR
+    // Impacket GetST / GetTGT / asktgs scripts (python or compiled)
+    tgt.process.cmdline contains:matchcase "GetST"
+    OR
+    tgt.process.cmdline contains:matchcase "GetTGT"
+    OR
+    tgt.process.cmdline contains:matchcase "asktgs"
+    OR
+    // RC4 downgrade flag explicitly passed to tooling
+    tgt.process.cmdline contains ("/rc4", "-rc4", "--rc4", "rc4opsec", "etype 23", "etype:23", "-etype 23")
+)
+// Exclude known signed Microsoft and Kerberos management binaries
+AND NOT (
+    tgt.process.publisher in:anycase (
+        "Microsoft Corporation",
+        "Microsoft Windows"
+    )
+)
+// Exclude dedicated admin hosts if applicable
+AND NOT (endpoint.name matches "(?i)^(DC|PKI|ADFS)-")
+| columns
+    endpoint.name,
+    endpoint.os,
+    src.process.name,
+    src.process.cmdline,
+    src.process.user,
+    tgt.process.name,
+    tgt.process.cmdline,
+    tgt.process.image.path,
+    tgt.process.signedStatus,
+    tgt.process.publisher
+| sort -timestamp
