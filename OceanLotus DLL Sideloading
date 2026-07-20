@@ -1,0 +1,50 @@
+OceanLotus DLL Sideloading - SPECTRALVIPER/PHOREAL Masqueraded Loader Chain
+In this threat hunting scenario, we searched for indicators associated with the OceanLotus (APT32) malware delivery chain, focusing on DLL sideloading and process injection techniques used by the SPECTRALVIPER/PHOREAL loader. The hunt targeted masqueraded executables (such as IntelAudioService or HP Toolbox variants), suspicious command-line arguments (e.g., -uiDll, appmodel, StateRepository), loading of the malicious DtlCrashCatch.dll module, and cross-process injection into legitimate processes.
+
+This attack technique enables threat actors to abuse trusted signed applications to load malicious DLLs, evade endpoint security controls, and execute malware under the context of legitimate processes. If successful, attackers may achieve stealthy code execution, persistence, credential theft, lateral movement, and establish command-and-control (C2) communications while remaining difficult to detect.
+
+Sentinel one Query:
+
+
+// OceanLotus DLL sideloading detection covering:
+// 1. IntelAudioService.exe (dtlupdate masquerade) with StateRepository args
+// 2. HP Toolbox masquerades (Genuine.exe, Updater.exe, AutoCAD242.exe) with -uiDll flag
+// 3. DtlCrashCatch.dll SPECTRALVIPER loader module load
+// 4. Cross-process injection from known sideloading executables
+
+(
+  // IntelAudioService.exe masquerade of dtlupdate binary spawned with appmodel/StateRepository args
+  event.type = "Process Creation"
+  AND tgt.process.name in:anycase ("IntelAudioService.exe")
+  AND tgt.process.cmdline contains "/appmodel"
+  AND tgt.process.cmdline contains "StateRepository"
+)
+OR
+(
+  // HP Toolbox.exe variants (Genuine.exe, Updater.exe, AutoCAD242.exe) using -uiDll sideload mechanism
+  event.type = "Process Creation"
+  AND tgt.process.name in:anycase ("Genuine.exe", "Updater.exe", "AutoCAD242.exe")
+  AND tgt.process.cmdline contains "-uiDll"
+)
+OR
+(
+  // DtlCrashCatch.dll SPECTRALVIPER loader DLL loaded into any process
+  event.type = "Module Load"
+  AND tgt.file.name in:anycase ("DtlCrashCatch.dll")
+)
+OR
+(
+  // Cross-process injection originating from known OceanLotus sideloading executables
+  // or the OneDrive.Sync.Services.exe masquerade used for SPECTRALVIPER staging
+  event.type = "Cross Process"
+  AND src.process.name in:anycase (
+    "IntelAudioService.exe",
+    "Genuine.exe",
+    "Updater.exe",
+    "AutoCAD242.exe",
+    "OneDrive.Sync.Services.exe",
+    "OneDrive.Sync.Service.exe"
+  )
+)
+| columns endpoint.name, event.type, src.process.name, src.process.image.path, src.process.cmdline, tgt.process.name, tgt.process.image.path, tgt.file.name, tgt.file.path
+| sort -timestamp
