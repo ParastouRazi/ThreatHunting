@@ -1,0 +1,93 @@
+Threat Hunting Scenario: VILE Ransomware Security Tool Tampering - ETW Patch and Event Log Clear
+
+In this threat hunting scenario, we searched for behavioral indicators associated with VILE ransomware defense evasion techniques, including Windows Event Log clearing, termination of security-related processes, and creation of ransomware-related files in common staging locations.
+
+The objective was to identify attempts by attackers to disable security monitoring, remove forensic evidence, and prepare systems for ransomware execution. These activities may indicate an active compromise and could lead to successful ransomware deployment, data encryption, and operational disruption.
+
+MITRE ATT&CK Mapping:
+
+T1070.001 — Indicator Removal: Clear Windows Event Logs
+T1562.001 — Impair Defenses: Disable or Modify System Security Tools
+T1562.002 — Impair Defenses: Disable Windows Event Logging
+T1486 — Data Encrypted for Impact
+T1059.001 — Command and Scripting Interpreter: PowerShell
+
+Sentınel One
+
+(
+ event.type = "Process Creation"
+ AND
+ (
+  tgt.process.cmdline contains "EvtClearLog"
+  OR tgt.process.cmdline contains "EvtOpenLog"
+  OR (
+    tgt.process.name = "wevtutil.exe"
+    AND
+    (
+     tgt.process.cmdline contains "cl "
+     OR tgt.process.cmdline contains "clear-log"
+    )
+  )
+  OR (
+   tgt.process.name = "powershell.exe"
+   OR tgt.process.name = "pwsh.exe"
+  )
+  AND
+  (
+   tgt.process.cmdline contains "Clear-EventLog"
+   OR tgt.process.cmdline contains "wevtutil"
+  )
+ )
+)
+
+OR
+
+(
+ event.type = "Process Creation"
+ AND
+ (
+  tgt.process.cmdline contains "Win32_NTEventlogFile"
+  OR tgt.process.cmdline contains "ClearEventLog"
+ )
+)
+
+OR
+
+(
+ event.type = "Cross Process"
+ AND
+ (
+  tgt.process.name = "MsMpEng.exe"
+  OR tgt.process.name = "SentinelAgent.exe"
+  OR tgt.process.name = "SentinelServiceHost.exe"
+  OR tgt.process.name = "CSFalconService.exe"
+  OR tgt.process.name = "CSFalconContainer.exe"
+  OR tgt.process.name = "cb.exe"
+  OR tgt.process.name = "CarbonBlack.exe"
+  OR tgt.process.name = "cbdefense.exe"
+  OR tgt.process.name = "avgui.exe"
+  OR tgt.process.name = "avguard.exe"
+  OR tgt.process.name = "AvastSvc.exe"
+  OR tgt.process.name = "ekrn.exe"
+  OR tgt.process.name = "egui.exe"
+ )
+ AND
+ (
+  src.process.image.path contains "\AppData\"
+  OR src.process.image.path contains "\Users\Public\"
+  OR src.process.image.path contains "\Temp\"
+ )
+)
+
+OR
+
+(
+ event.type = "File Creation"
+ OR event.type = "File Modification"
+)
+AND
+(
+ tgt.file.name = "vile_deadlines.json"
+ OR tgt.file.name = "vile_user_files.zip"
+ OR tgt.file.name = "vile_icon.ico"
+)
