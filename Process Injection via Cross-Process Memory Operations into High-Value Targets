@@ -54,3 +54,25 @@ AND NOT (
     tgt.process.image.path,
     tgt.process.pid
 | sort -timestamp
+
+
+-------------------------------------
+Wazuh Sysmon Query:
+
+data.win.system.eventID:"10"
+AND data.win.eventdata.targetImage:(
+  *\\lsass.exe
+  OR *\\explorer.exe
+  OR *\\svchost.exe
+  OR *\\notepad.exe
+)
+AND NOT data.win.eventdata.sourceImage:(
+  *\\MsMpEng.exe
+  OR *\\WerFault.exe
+  OR *\\WerFaultSecure.exe
+  OR *\\taskmgr.exe
+  OR *\\procexp.exe
+  OR *\\procexp64.exe
+  OR *\\procmon.exe
+  OR *\\procmon64.exe
+)
