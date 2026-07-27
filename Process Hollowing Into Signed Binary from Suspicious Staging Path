@@ -23,3 +23,23 @@ AND NOT (src.process.publisher in (
 | columns endpoint.name, src.process.name, src.process.image.path, src.process.cmdline, src.process.user, tgt.process.name, tgt.process.image.path, tgt.process.publisher
 | limit 200
 
+
+Wazuh/Sysmon Query:
+
+data.win.system.eventID:"1"
+AND data.win.eventdata.image:(
+  *\\ProgramData\\*
+  OR *\\AppData\\Local\\Temp\\*
+  OR *\\AppData\\Roaming\\*
+  OR *\\Windows\\Temp\\*
+)
+AND NOT data.win.eventdata.company:(
+  "Microsoft Corporation"
+  OR "SentinelOne"
+  OR "CrowdStrike, Inc."
+  OR "Carbon Black, Inc."
+  OR "Sophos Limited"
+  OR "Trend Micro Incorporated"
+  OR "Kaspersky Lab"
+  OR "Malwarebytes"
+)
