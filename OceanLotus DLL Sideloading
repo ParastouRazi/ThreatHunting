@@ -48,3 +48,41 @@ OR
 )
 | columns endpoint.name, event.type, src.process.name, src.process.image.path, src.process.cmdline, tgt.process.name, tgt.process.image.path, tgt.file.name, tgt.file.path
 | sort -timestamp
+
+**************************************
+Wazuh sysmon query
+
+(
+  data.win.system.eventID:"1"
+  AND data.win.eventdata.image:*\\IntelAudioService.exe
+  AND data.win.eventdata.commandLine:*\/appmodel*
+  AND data.win.eventdata.commandLine:*StateRepository*
+)
+OR
+(
+  data.win.system.eventID:"1"
+  AND data.win.eventdata.image:(
+    *\\Genuine.exe
+    OR *\\Updater.exe
+    OR *\\AutoCAD242.exe
+  )
+  AND data.win.eventdata.commandLine:*-uiDll*
+)
+OR
+(
+  data.win.system.eventID:"7"
+  AND data.win.eventdata.imageLoaded:*\\DtlCrashCatch.dll
+)
+OR
+(
+  data.win.system.eventID:"10"
+  AND data.win.eventdata.sourceImage:(
+    *\\IntelAudioService.exe
+    OR *\\Genuine.exe
+    OR *\\Updater.exe
+    OR *\\AutoCAD242.exe
+    OR *\\OneDrive.Sync.Services.exe
+    OR *\\OneDrive.Sync.Service.exe
+  )
+)
+
