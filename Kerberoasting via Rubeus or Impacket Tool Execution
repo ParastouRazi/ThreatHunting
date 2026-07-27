@@ -48,3 +48,25 @@ AND NOT (endpoint.name matches "(?i)^(DC|PKI|ADFS)-")
     tgt.process.signedStatus,
     tgt.process.publisher
 | sort -timestamp
+
+Wazuh/sysmon Query:
+
+data.win.system.eventID:"1"
+AND (
+  data.win.eventdata.image:*\\Rubeus.exe
+  OR data.win.eventdata.commandLine:*kerberoast*
+  OR data.win.eventdata.commandLine:*GetST*
+  OR data.win.eventdata.commandLine:*GetTGT*
+  OR data.win.eventdata.commandLine:*asktgs*
+  OR data.win.eventdata.commandLine:(
+    *\/rc4*
+    OR *-rc4*
+    OR *--rc4*
+    OR *rc4opsec*
+    OR *"etype 23"*
+    OR *etype:23*
+    OR *"-etype 23"*
+  )
+)
+AND NOT data.win.eventdata.company:("Microsoft Corporation" OR "Microsoft Windows")
+AND NOT agent.name:/([Dd][Cc]|[Pp][Kk][Ii]|[Aa][Dd][Ff][Ss])-.*/
