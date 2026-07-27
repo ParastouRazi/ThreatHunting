@@ -69,4 +69,4 @@ AND (
   )
 )
 AND NOT data.win.eventdata.company:("Microsoft Corporation" OR "Microsoft Windows")
-AND NOT agent.name:/([Dd][Cc]|[Pp][Kk][Ii]|[Aa][Dd][Ff][Ss])-.*/
+
