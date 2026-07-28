@@ -53,3 +53,4 @@ AND NOT data.win.eventdata.parentImage:(
   OR *\\services.exe
   OR *\\wininit.exe
 )
+AND NOT data.win.eventdata.company:"Microsoft Corporation"
