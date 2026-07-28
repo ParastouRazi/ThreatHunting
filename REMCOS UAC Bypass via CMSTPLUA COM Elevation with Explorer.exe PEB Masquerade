@@ -36,4 +36,20 @@ AND src.process.publisher != "Microsoft Corporation"
 
 
 ****************************
+Wazuh Sysmon Query:
 
+data.win.system.eventID:"1"
+AND data.win.eventdata.image:(
+  *\\iexplore.exe
+  OR *\\ieinstal.exe
+  OR *\\ielowutil.exe
+  OR *\\svchost.exe
+  OR *\\rmclient.exe
+  OR *\\fsutil.exe
+)
+AND NOT data.win.eventdata.parentImage:(
+  *\\explorer.exe
+  OR *\\svchost.exe
+  OR *\\services.exe
+  OR *\\wininit.exe
+)
