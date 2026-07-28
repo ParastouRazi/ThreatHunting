@@ -91,3 +91,4 @@ AND
  OR tgt.file.name = "vile_user_files.zip"
  OR tgt.file.name = "vile_icon.ico"
 )
+AND NOT data.win.eventdata.parentCommandLine:*ManageEngine*
