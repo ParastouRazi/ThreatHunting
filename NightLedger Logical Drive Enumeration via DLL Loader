@@ -10,7 +10,7 @@ MITRE ATT&CK
 T1218.011 – System Binary Proxy Execution: Rundll32
 T1218.010 – System Binary Proxy Execution: Regsvr32
 
-Query:
+Crowdstrike Falcon EDR CQL Query:
 #event_simpleName=ProcessRollup2
 | ProcessCommandLine=/(logicaldisk|fsutil\s+fsinfo\s+drives|get-psdrive|\[system\.io\.driveinfo\])/i
 | ParentBaseFileName=/(rundll32\.exe|regsvr32\.exe|appvshnotify\.exe|dllhost\.exe)/i
