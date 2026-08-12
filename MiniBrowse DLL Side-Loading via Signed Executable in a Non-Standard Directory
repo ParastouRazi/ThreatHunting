@@ -1,0 +1,34 @@
+MiniBrowse DLL Side-Loading via Signed Executable in a Non-Standard Directory
+
+This threat hunting scenario detects potential DLL side-loading by identifying DLL files created in suspicious or non-standard directories such as AppData, Temp, ProgramData, Users\Public, and Downloads. The detection correlates these DLL creation events with legitimate signed executables associated with vendors such as Microsoft, Citrix, VMware, and Fortinet that are running outside their expected protected installation directories. Attackers may abuse trusted executables to load a malicious DLL from the same directory, allowing the payload to execute under the context of a legitimate signed binary.
+
+The activity should be investigated by validating the DLL's path, hash, digital signature, creation time, and relationship to the initiating executable. Analysts should review the complete process tree and determine whether the executable was copied or extracted into the non-standard directory, followed by DLL loading or execution. Additional investigation should include checking for persistence mechanisms, network connections, suspicious child processes, and other indicators associated with the MiniBrowse execution chain.
+
+MITRE ATT&CK Mapping:
+
+T1574.002 – Hijack Execution Flow: DLL Side-Loading
+T1036.005 – Masquerading: Match Legitimate Name or Location
+T1218 – System Binary Proxy Execution
+
+
+#event_simpleName = NewExecutableWritten
+| event_platform = Win
+| TargetFileName = /\.dll$/i
+| !TargetFileName = /\\(Windows\\System32|Windows\\SysWOW64|Program Files|Program Files \(x86\))\\/i
+| TargetFileName = /\\(AppData|Temp|ProgramData|Users\\Public|Downloads)\\/i
+| !TargetFileName = /\\Microsoft\\Windows Defender\\/i
+| !TargetFileName = /\\Microsoft\.NET\\Framework\\/i
+| join(field=aid, query={
+    #event_simpleName = ProcessRollup2
+    | event_platform = Win
+    | ImageFileName = /(Microsoft|Citrix|VMware|Forti(Client|Gate|SSLVPN))/i
+    | !ImageFileName = /\\(Windows\\System32|Windows\\SysWOW64|Program Files|Program Files \(x86\))\\/i
+    | !ImageFileName = /\\Microsoft\\Windows Defender\\/i
+    | !ImageFileName = /\\Microsoft\.NET\\Framework\\/i
+    | !ImageFileName = /\\SoftLandingTask\.exe$/i
+    | !UserName = /\$$/i
+    | !UserName = /^LOCAL SERVICE$/i
+    | !UserName = /^$/i
+    | select([aid, ComputerName, UserName, ImageFileName, CommandLine, @timestamp])
+  }, include=[ComputerName, UserName, ImageFileName, CommandLine])
+| table([aid, ComputerName, UserName, ImageFileName, CommandLine, TargetFileName, @timestamp])
