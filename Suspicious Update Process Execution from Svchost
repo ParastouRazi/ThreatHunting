@@ -1,0 +1,23 @@
+Suspicious Update Process Execution from Svchost
+
+This threat hunting scenario detects potentially malicious execution of an update.exe process launched by svchost.exe from the legitimate C:\Windows\System32 directory. The detection focuses on cases where update.exe resides in user-writable or non-standard locations such as AppData, Temp, Users\Public, or Downloads. This parent-child relationship is suspicious because svchost.exe normally hosts Windows services and should not typically launch executables from these user-controlled directories.
+
+The activity should be investigated by reviewing the complete process tree, command line, file path, SHA256 hash, digital signature, integrity level, and service associated with the initiating svchost.exe. Analysts should also check for persistence mechanisms, newly created files, subsequent child processes, and network connections to determine whether the update.exe binary represents malware staging, execution, or another form of defense evasion.
+
+MITRE ATT&CK Mapping:
+
+T1036.005 – Masquerading: Match Legitimate Name or Location
+T1218 – System Binary Proxy Execution
+T1055 – Process Injection (if injection into or from svchost.exe is confirmed)
+T1105 – Ingress Tool Transfer (if update.exe was downloaded or transferred to the endpoint)
+
+CQL
+#event_simpleName = ProcessRollup2 
+| ImageFileName = /\\update\.exe$/i 
+| InitiatingProcessFileName = /\\svchost\.exe$/i 
+| InitiatingProcessFolderPath = /C:\\Windows\\System32/i 
+| (FolderPath = /\\AppData\\/i OR FolderPath = /\\Temp\\/i OR FolderPath = /\\Users\\Public\\/i OR FolderPath = /\\Downloads\\/i) 
+| ProcessIntegrityLevel != "System" | groupBy([SHA256, ImageFileName, FolderPath, CommandLine], function=[count(as=Count), count(DeviceName, distinct=true, as=Devices), min(@timestamp, as=FirstSeen), max(@timestamp, as=LastSeen)]) 
+| sort(field=Devices, order=asc) 
+| sort(field=Count, order=asc)
+
