@@ -1,0 +1,19 @@
+NightLedger Logical Drive Enumeration via DLL Loader
+
+This threat hunting scenario detects potential NightLedger activity associated with the Mirage Kitten threat actor by identifying logical drive enumeration commands executed from suspicious DLL-loader processes such as rundll32.exe, regsvr32.exe, AppVShNotify.exe, and dllhost.exe. The hunt focuses on commands including wmic logicaldisk, fsutil fsinfo drives, Get-PSDrive, and .NET DriveInfo enumeration, which may be used to identify available storage volumes before data staging and exfiltration.
+
+The detection prioritizes activity where drive enumeration originates from a DLL-loader process, as this parent-child relationship has limited legitimate use cases and may indicate malicious execution. Alerts should be investigated by reviewing the complete process tree, executed DLLs, file paths and hashes, user context, and subsequent network activity for potential C2 communication or data exfiltration.
+
+
+MITRE ATT&CK
+T1083 – File and Directory Discovery
+T1218.011 – System Binary Proxy Execution: Rundll32
+T1218.010 – System Binary Proxy Execution: Regsvr32
+
+Query:
+#event_simpleName=ProcessRollup2
+| ProcessCommandLine=/(logicaldisk|fsutil\s+fsinfo\s+drives|get-psdrive|\[system\.io\.driveinfo\])/i
+| ParentBaseFileName=/(rundll32\.exe|regsvr32\.exe|appvshnotify\.exe|dllhost\.exe)/i
+| Severity := if(regex("appvshnotify\\.exe", field=ParentBaseFileName, flags="i"), then="High", else="Medium")
+| table([aid, ComputerName, FileName, ProcessCommandLine, ParentBaseFileName, ParentProcessId, UserName, Severity, @timestamp])
+| sort(field=@timestamp, order=asc)
