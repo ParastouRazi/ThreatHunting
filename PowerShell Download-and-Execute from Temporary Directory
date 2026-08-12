@@ -1,0 +1,19 @@
+PowerShell Download-and-Execute from Temporary Directory
+
+This threat hunting scenario detects potential malicious use of PowerShell to download and execute payloads from temporary directories. The detection looks for PowerShell or PowerShell Core commands using common download mechanisms such as DownloadFile and Net.WebClient, combined with references to %TEMP% or $env:TEMP and execution techniques such as Start-Process, Invoke-Expression, iex, or dynamically invoking downloaded content. This behavior is commonly associated with malware delivery chains such as ClickFix campaigns.
+
+The activity should be investigated by reviewing the complete process tree, parent process, executing user, PowerShell command line, downloaded file path, file hash, and subsequent child processes. Analysts should also correlate the activity with browser processes, suspicious scripts or files created in the temporary directory, network connections, persistence mechanisms, and known malware indicators to determine whether the PowerShell activity represents a legitimate administrative operation or a payload download-and-execution chain.
+
+MITRE ATT&CK Mapping:
+
+T1059.001 – Command and Scripting Interpreter: PowerShell
+T1105 – Ingress Tool Transfer
+T1204.002 – User Execution: Malicious File (if user interaction initiated the execution)
+T1218 – System Binary Proxy Execution (if applicable to the subsequent execution chain)
+
+#event_simpleName=ProcessRollup2
+| ImageFileName=/powershell(\.exe)?|pwsh(\.exe)?/i
+| CommandLine=/DownloadFile|Net\.WebClient/i
+| CommandLine=/%TEMP%|\$env:TEMP/i
+| CommandLine=/&\s*\$f|Start-Process|Invoke-Expression|iex/i
+| table([@timestamp, ComputerName, UserName, ParentBaseFileName, ImageFileName, CommandLine])
