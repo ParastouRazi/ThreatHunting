@@ -1,0 +1,21 @@
+Certutil.exe Abuse for Payload Decoding and Download Kimsuky Link.dat/Link.ini
+
+This threat hunting scenario detects potential abuse of the Windows certutil.exe utility to decode or retrieve files as part of a malicious payload delivery chain associated with Kimsuky. The detection focuses on certutil.exe executions using -decode or -urlcache, with additional indicators such as Link.dat, Link.ini, and /Links/Link.dat, which may indicate the reconstruction or extraction of encoded payload components.
+
+The activity should be investigated by reviewing the complete process tree, parent process, executing user, command-line arguments, source and destination files, and subsequent process execution. Particular attention should be given to decoded files that are subsequently executed, loaded as DLLs, or used to establish persistence or C2 communication, as this behavior may indicate malicious payload delivery rather than legitimate certificate-management activity.
+
+MITRE ATT&CK Mapping:
+
+T1140 – Deobfuscate/Decode Files or Information
+T1105 – Ingress Tool Transfer
+T1218 – System Binary Proxy Execution
+
+Crowdstrike Falcon EDR CQL Query:
+
+#event_simpleName = ProcessRollup2
+| event_platform = Win
+| ImageFileName = /\\certutil\.exe$/i
+| CommandLine = /(-decode|-urlcache)/i
+| CommandLine = /(-decode\s+(\S*\\)?Link\.dat\s+(\S*\\)?Link\.ini|-urlcache\s+-split\s+-f|Link\.dat|Link\.ini|\\Links\\Link\.dat)/i
+| table([aid, ComputerName, UserName, ParentBaseFileName, ImageFileName, CommandLine, @timestamp])
+
