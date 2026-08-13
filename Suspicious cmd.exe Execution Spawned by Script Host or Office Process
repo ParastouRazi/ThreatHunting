@@ -1,0 +1,20 @@
+Suspicious cmd.exe Execution Spawned by Script Host or Office Process
+
+This threat hunting scenario detects cmd.exe /c execution when directly spawned by Microsoft Office applications or Windows scripting engines such as wscript.exe and cscript.exe. This parent-child relationship is a common indicator of malicious document and macro-based execution chains, where an attacker abuses a trusted Office application or script host to invoke command-line operations and execute a secondary payload.
+
+From a threat-hunting perspective, the focus is on identifying abnormal Office/Script Host → cmd.exe execution chains and determining whether the command line performs reconnaissance, downloads files, modifies system settings, or launches additional scripting interpreters. Correlating the activity with the originating document, user context, child processes, file creation, and network connections can help distinguish legitimate automation from weaponized documents or script-based payload execution.
+
+MITRE ATT&CK Mapping:
+
+T1059.003 – Command and Scripting Interpreter: Windows Command Shell
+T1204.002 – User Execution: Malicious File
+T1203 – Exploitation for Client Execution (if exploitation is involved)
+T1059.005 – Command and Scripting Interpreter: Visual Basic (if VBScript is the initiating mechanism)
+
+CQL:
+#event_simpleName = ProcessRollup2
+| event_platform = Win
+| ImageFileName = /\\cmd\.exe$/i
+| CommandLine = /\/c\s/i
+| ParentBaseFileName = /^(wscript\.exe|cscript\.exe|winword\.exe|excel\.exe|powerpnt\.exe|outlook\.exe)$/i
+| table([aid, ComputerName, UserName, ParentBaseFileName, ImageFileName, CommandLine, @timestamp])
