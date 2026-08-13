@@ -1,0 +1,32 @@
+PowerShell Reverse Shell Launched via cmd.exe from Remote Mouse Keystroke Injection
+
+This threat hunting scenario detects potential fileless PowerShell reverse shells where cmd.exe launches PowerShell to establish an outbound TCP connection using the .NET System.Net.Sockets.TCPClient class. The combination of command-line execution, hidden PowerShell activity, and direct socket communication can indicate an attacker obtaining an interactive shell without dropping a conventional executable payload to disk. The behavior is particularly relevant to attack chains involving remote input or mouse/keyboard injection, where an attacker may use legitimate remote-control functionality to execute commands on a compromised endpoint.
+
+From a threat-hunting perspective, the focus is on identifying abnormal cmd.exe → PowerShell → TCPClient execution chains and correlating them with the destination IP/port, user context, process ancestry, and subsequent PowerShell commands. Connections to previously unseen external infrastructure, encoded commands, credential access, reconnaissance, or additional payload retrieval would increase the likelihood that the activity represents an active remote shell rather than legitimate administrative activity.
+
+MITRE ATT&CK Mapping:
+
+T1059.001 – Command and Scripting Interpreter: PowerShell
+T1059.003 – Command and Scripting Interpreter: Windows Command Shell
+T1059 – Command and Scripting Interpreter
+T1071.001 – Application Layer Protocol: Web Protocols (if HTTP/HTTPS is used for subsequent C2)
+T1095 – Non-Application Layer Protocol (for direct TCP-based C2)
+T1021 – Remote Services (if remote access is confirmed as the initial access mechanism)
+
+CQL:
+correlate(
+  PowershellReverseShell: {
+    #event_simpleName = ProcessRollup2
+    event_platform = Win
+    ImageFileName = /\\powershell\.exe$/i
+    ParentBaseFileName = /^cmd\.exe$/i
+    CommandLine = /-nop\s+-w\s+hidden\s+-c/i
+    CommandLine = /New-Object\s+Net\.Sockets\.TCPClient/i
+  } include: [aid, ComputerName, UserName, ParentBaseFileName, ImageFileName, CommandLine, @timestamp],
+  OutboundConnection: {
+    #event_simpleName = NetworkConnectIP4
+    aid <=> PowershellReverseShell.aid
+  } include: *,
+  within=1m
+)
+| table([aid, ComputerName, UserName, ParentBaseFileName, ImageFileName, CommandLine, RemoteAddressIP4, RemotePort, @timestamp])
