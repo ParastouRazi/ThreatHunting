@@ -1,0 +1,17 @@
+Suspicious PowerShell Execution via Office/Script Host Parent with Hidden or Encoded Flags
+
+This threat hunting scenario focuses on detecting PowerShell execution initiated by Office applications or script hosts where the command uses -EncodedCommand or -WindowStyle Hidden. The combination of a scripting-capable parent such as winword.exe, excel.exe, outlook.exe, mshta.exe, wscript.exe, or cscript.exe with obfuscated or hidden PowerShell execution is a strong behavioral indicator of malicious document, phishing, and script-based attack chains. From a threat-hunting perspective, the goal is to identify abnormal parent-child relationships that may reveal initial access followed by payload execution and defense evasion.
+
+MITRE ATT&CK Mapping:
+
+T1059.001 – Command and Scripting Interpreter: PowerShell
+T1027 – Obfuscated Files or Information
+T1564.003 – Hide Artifacts: Hidden Window
+T1204.002 – User Execution: Malicious File
+
+#event_simpleName = ProcessRollup2
+| event_platform = Win
+| ImageFileName = /\\powershell(_ise)?\.exe$/i
+| ParentBaseFileName = /^(winword|excel|powerpnt|outlook|mshta|wscript|cscript|hh)\.exe$/i
+| CommandLine = /(-enc(odedcommand)?\s)|(-w(indowstyle)?\s+hidden)/i
+| table([aid, ComputerName, UserName, ParentBaseFileName, ImageFileName, CommandLine, @timestamp])
