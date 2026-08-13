@@ -1,0 +1,19 @@
+Suspicious schtasks create Persistence for MiniJunk Backdoor
+
+This threat hunting scenario detects potential scheduled task-based persistence associated with the MiniJunk backdoor by identifying the creation of scheduled tasks using schtasks.exe /create. The hunt focuses on tasks that execute payloads from suspicious or user-writable locations such as Temp and ProgramData, invoke scripting files including .vbs, .ps1, .bat, .hta, or .js, or use names designed to resemble legitimate Windows, system, or software update tasks. These characteristics can indicate an attempt to establish persistence while blending malicious activity with legitimate scheduled operations.
+
+From a threat-hunting perspective, analysts should prioritize unusual task names, suspicious task paths, unexpected creators, and script or executable payloads located outside standard application directories. Correlating the task creation with the initiating process, user context, file creation events, subsequent task execution, network connections, and other persistence mechanisms can help identify a broader MiniJunk infection chain.
+
+MITRE ATT&CK Mapping:
+
+T1053.005 – Scheduled Task/Job: Scheduled Task
+T1059 – Command and Scripting Interpreter
+T1036.005 – Masquerading: Match Legitimate Name or Location
+
+#event_simpleName = ProcessRollup2
+| event_platform = Win
+| ImageFileName = /\\schtasks\.exe$/i
+| CommandLine = /\/create/i
+| CommandLine = /\/tn\s+/i
+| (CommandLine = /\\(Temp|AppData\\Local\\Temp|ProgramData|Users\\Public)\\/i OR CommandLine = /\.(vbs|ps1|bat|hta|js)\b/i OR CommandLine = /\/tn\s+"?(Microsoft|Windows|System|Update|Security)[A-Za-z0-9 _-]*"?/i)
+| table([aid, ComputerName, UserName, ParentBaseFileName, ImageFileName, CommandLine, @timestamp])
