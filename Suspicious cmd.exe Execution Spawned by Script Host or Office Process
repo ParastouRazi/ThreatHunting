@@ -16,5 +16,6 @@ CQL:
 | event_platform = Win
 | ImageFileName = /\\cmd\.exe$/i
 | CommandLine = /\/c\s/i
+| !CommandLine = /nslookup/i | !CommandLine = /QUEENCREEK/i
 | ParentBaseFileName = /^(wscript\.exe|cscript\.exe|winword\.exe|excel\.exe|powerpnt\.exe|outlook\.exe)$/i
 | table([aid, ComputerName, UserName, ParentBaseFileName, ImageFileName, CommandLine, @timestamp])
