@@ -1,0 +1,20 @@
+Cloudflare Quick Tunnel Deployment via cloudflared --url localhost
+
+This threat hunting scenario detects the execution of cloudflared with the tunnel --url option targeting localhost or api.trycloudflare.com, which can indicate the creation of an ad-hoc Cloudflare Quick Tunnel. Unlike a managed Cloudflare tunnel, Quick Tunnels can expose a locally hosted service to the public internet without requiring the typical managed-tunnel authentication configuration. From a threat-hunting perspective, this behavior is notable because attackers can abuse legitimate tunneling infrastructure to make internal services externally accessible or establish covert communication channels.
+
+The hunt should focus on identifying unexpected cloudflared executions, particularly when initiated by unusual parent processes, users, scripts, or applications. Correlating the command line with the exposed local service, process ancestry, network activity, downloaded files, and subsequent connections to external infrastructure can help determine whether the tunnel was created for legitimate development or administration, or whether it represents unauthorized exposure, C2, or tunneling activity.
+
+MITRE ATT&CK Mapping:
+
+T1572 – Protocol Tunneling
+T1090.003 – Proxy: Multi-hop Proxy
+
+Cortex Query:
+dataset = xdr_data
+| filter event_type = ENUM.PROCESS and event_sub_type = ENUM.PROCESS_START
+| filter action_process_image_name = "cloudflared"
+| filter action_process_image_command_line contains "tunnel"
+| filter action_process_image_command_line contains "--url"
+| filter action_process_image_command_line contains "localhost" or action_process_image_command_line contains "api.trycloudflare.com"
+| filter not (action_process_image_command_line contains "--config" or action_process_image_command_line contains "--cred-file" or action_process_image_command_line contains "--origincert" or action_process_image_command_line contains "run")
+| fields agent_hostname, actor_process_image_path, action_process_image_command_line, _time
