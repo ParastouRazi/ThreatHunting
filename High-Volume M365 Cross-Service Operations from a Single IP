@@ -1,0 +1,53 @@
+High-Volume M365 Cross-Service Operations from a Single IP
+
+This threat hunting scenario detects rapid, high-volume activity across multiple Microsoft 365 services including SharePoint, OneDrive, Microsoft Teams, and Exchange within a 10-minute window. The detection correlates a single identity and source IP performing a large number of file and messaging operations such as file downloads, file access, searches, synchronization, message sending, and Teams activity. A high volume of operations across multiple services in a compressed timeframe may indicate cloud reconnaissance, automated collection, or data exfiltration following the compromise of a Microsoft 365 account.
+
+From a threat-hunting perspective, priority should be given to identities generating 50 or more operations across at least two M365 services, particularly when the source IP belongs to a VPN, proxy, hosting provider, or other anonymization infrastructure. A high number of distinct files and operation types can further strengthen the detection, especially when the activity is inconsistent with the user's historical behavior or normal workload. Correlation with successful authentication events, impossible-travel activity, MFA changes, mailbox access, and subsequent external sharing or download activity can help identify account compromise and cloud-based data theft.
+
+MITRE ATT&CK Mapping:
+
+T1530 – Data from Cloud Storage
+T1213 – Data from Information Repositories
+T1567 – Exfiltration Over Web Service
+T1567.002 – Exfiltration Over Web Service: Exfiltration to Cloud Storage
+T1078.004 – Valid Accounts: Cloud Accounts
+
+Cortex:
+
+// BlackFile\UNC6671\Cordial Spider High Volume M365 Cross Service Operations
+// Detects rapid high-volume file and messaging operations across multiple Microsoft 365 services (SharePoint, OneDrive, Teams, Exchange) within a compressed 10-minute window.
+// MITRE T1567 - Exfiltration Over Web Service, T1530 - Data from Cloud Storage, T1213 - Data from Information Repositories
+
+
+dataset = saas_audit_logs
+| filter service_type in ("SharePoint", "OneDrive", "MicrosoftTeams", "Exchange")
+| filter operation_name_orig in (
+    "FileDownloaded",
+    "FileSyncDownloadedFull",
+    "FileAccessed",
+    "FilePreviewed",
+    "FileUploaded",
+    "Send",
+    "SearchQueryPerformed",
+    "TeamsSessionStarted",
+    "MessageSent"
+  )
+| filter identity_name != null and caller_ip != null
+| bin _time span = 10m
+| alter time_bucket = _time
+| alter source_file = json_extract_scalar(raw_log, "$.SourceFileName")
+| comp
+    count() as operation_count,
+    count_distinct(service_type) as distinct_services,
+    count_distinct(operation_name_orig) as distinct_operations,
+    count_distinct(source_file) as distinct_files,
+    values(operation_name_orig) as operations_list,
+    values(service_type) as services_list
+  by identity_name, time_bucket, caller_ip, caller_ip_asn_org
+| filter operation_count >= 50 and distinct_services >= 2
+| alter is_proxy_asn = if(
+    caller_ip_asn_org ~= "(?i)(proxy|vpn|hosting|cloud|digital ocean|linode|vultr|choopa|m247|privatevpn|mullvad|nordvpn|expressvpn|surfshark|hide\.me|torguard|perfect privacy|anonine|ovh|hetzner|serverius|leaseweb)",
+    "TRUE",
+    "FALSE"
+  )
+| fields identity_name, time_bucket, caller_ip, caller_ip_asn_org, is_proxy_asn, operation_count, distinct_services, distinct_operations, distinct_files, operations_list, services_list
