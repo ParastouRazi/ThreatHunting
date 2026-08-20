@@ -1,0 +1,83 @@
+Active Directory Reconnaissance via ADSISearcher / DirectorySearcher 
+
+This threat hunting scenario is designed to detect Active Directory reconnaissance performed through PowerShell using .NET classes such as ADSISearcher and DirectorySearcher. The detection identifies in-process LDAP enumeration through PowerShell ScriptBlock logging, including queries targeting sensitive accounts and attributes, Tier Zero assets, SPNs, delegation settings, LAPS/gMSA, sIDHistory, GPOs, computers, groups, and OUs. Such activity may indicate adversarial reconnaissance for credential access, privilege escalation, Kerberoasting, AS-REP Roasting, or DCSync-related attacks. Severity can be prioritized based on the LDAP filters and attributes requested, with additional command-line context used for triage.
+
+MITRE ATT&CK Techniques:
+
+T1018 – Remote System Discovery
+Used to identify systems and computer accounts within the Active Directory environment.
+T1087.002 – Account Discovery: Domain Account
+Used to enumerate domain accounts, including potentially privileged or Tier Zero accounts.
+T1069.002 – Permission Groups Discovery: Domain Groups
+
+
+Cortex:
+dataset = xdr_data
+| filter actor_process_image_name in ("powershell.exe", "powershell_ise.exe", "pwsh.exe", "cmd.exe")
+| filter action_evtlog_message contains "adsisearcher"
+      or action_evtlog_message contains "directorysearcher"
+      or action_evtlog_message contains "directoryservices"
+
+| alter msg = lowercase(action_evtlog_message)
+
+// ---- CRITICAL: after secrets directly, or DCSync-capable attributes ----
+| alter is_crit = if(
+       msg contains "ms-mcs-admpwd"
+    or msg contains "mslaps-password"
+    or msg contains "msds-managedpassword"
+    or msg contains "sidhistory"
+    or msg contains "ds-replication-get-changes"
+    or msg contains "unixuserpassword"
+    or msg contains "userpassword"
+    or msg contains "gpcfilesyspath"
+    or (msg contains "admincount" and (msg contains "description" or msg contains "'info'" or msg contains "comment")),
+    1, 0)
+
+// ---- HIGH: attack-technique targeting ----
+| alter is_high = if(
+       msg contains "admincount=1"
+    or msg contains "admincount"
+    or msg contains "serviceprincipalname=*"
+    or msg contains "serviceprincipalname=" 
+    or msg contains "1.2.840.113556.1.4.803"
+    or msg contains "1.2.840.113556.1.4.1941"
+    or msg contains "msds-allowedtodelegateto"
+    or msg contains "msds-allowedtoactonbehalfofotheridentity"
+    or msg contains "useraccountcontrol:1.2.840"
+    or msg contains "trusteddomain"
+    or msg contains "(objectclass=trusteddomain)"
+    or msg contains "dont_req_preauth"
+    or msg contains "4194304",
+    1, 0)
+
+// ---- MEDIUM: broad / group / infrastructure enumeration ----
+| alter is_med = if(
+       msg contains "primarygroupid=512"
+    or msg contains "primarygroupid=516"
+    or msg contains "primarygroupid=521"
+    or msg contains "(objectclass=group)"
+    or msg contains "(objectcategory=computer)"
+    or msg contains "(objectclass=grouppolicycontainer)"
+    or msg contains "operatingsystem"
+    or msg contains "(objectclass=organizationalunit)"
+    or (msg contains "objectcategory=user" and msg contains "findall"),
+    1, 0)
+
+// ---- Context multipliers ----
+| alter parent = lowercase(causality_actor_process_image_name)
+| filter parent != "wazuh-agent.exe"
+| filter parent != "dcagentservice.exe"
+
+| alter ctx_parent = if(parent in ("wsmprovhost.exe","winrshost.exe","sqlservr.exe",
+                                   "w3wp.exe","java.exe","winword.exe","excel.exe",
+                                   "outlook.exe","mshta.exe","wscript.exe","cscript.exe"), "yes", "no")
+| alter ctx_enc = if(msg contains "frombase64string" or msg contains "-enc"
+                  or msg contains "encodedcommand" or msg contains "-w hidden"
+                  or msg contains "-windowstyle hidden" or msg contains "-nop", "yes", "no")
+
+| alter severity = if(is_crit = 1, "1_CRITICAL",
+                   if(is_high = 1, "2_HIGH",
+                   if(is_med  = 1, "3_MEDIUM", "4_LOW")))
+| fields _time, severity, agent_hostname, actor_effective_username,
+         parent, causality_actor_process_command_line, ctx_parent, ctx_enc, action_evtlog_message
+| sort asc severity, desc _time
